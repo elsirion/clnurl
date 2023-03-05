@@ -73,9 +73,10 @@ services.nginx = {
 ```
 
 ## Contributing
-I mostly built it so I could play with the cool kids on nostr, PRs welcome, but I'm unlikely to fix bugs that don't
-annoy myself, like the MIT license says: "provided as-is". If you find `clnurl` useful or just want to test it out feel
-free to throw me some sats :P
+I mostly `clnurl` it so I could play with the cool kids on nostr, PRs welcome, but I'm unlikely to fix bugs myself that
+don't annoy me personally. Like the MIT license says: "provided as-is".
+
+If you find `clnurl` useful or just want to test it out in the wild feel free to throw me some sats :P
 
 | Format     | Encoding                                                                                            |
 |------------|-----------------------------------------------------------------------------------------------------|
