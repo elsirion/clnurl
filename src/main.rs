@@ -29,6 +29,11 @@ async fn main() -> anyhow::Result<()> {
             https://example.com/lnurl_api means endpoints are reachable as \
             https://example.com/lnurl_api/lnurl and https://example.com/lnurl_api/invoice",
         ))
+        .option(ConfigOption::new(
+            "clnurl_description",
+            Value::String("Gimme money!".into()),
+            "Description to be displayed in LNURL",
+        ))
         .dynamic()
         .start(())
         .await?
@@ -53,9 +58,17 @@ async fn main() -> anyhow::Result<()> {
         .expect("Option is a string")
         .parse()?;
 
+    let description = plugin
+        .option("clnurl_description")
+        .expect("Option is defined")
+        .as_str()
+        .expect("Option is a string")
+        .to_owned();
+
     let state = ClnurlState {
         rpc_socket,
         api_base_address,
+        description,
     };
 
     let lnurl_service = Router::new()
@@ -74,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
 struct ClnurlState {
     rpc_socket: PathBuf,
     api_base_address: Url,
+    description: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,8 +116,7 @@ async fn get_lnurl_struct(State(state): State<ClnurlState>) -> Json<LnurlRespons
     Json(LnurlResponse {
         min_sendable: Some(0),
         max_sendable: None,
-        // TODO: find out what this does
-        metadata: "".to_string(),
+        metadata: format!("[[\"text/plain\",\"{}\"]]", state.description),
         callback: state
             .api_base_address
             .join("invoice")
@@ -139,14 +152,14 @@ async fn get_invoice(
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
             amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
-            description: "".to_string(),
+            description: state.description,
             label: Uuid::new_v4().to_string(),
             expiry: None,
             fallbacks: None,
             preimage: None,
             exposeprivatechannels: None,
             cltv: None,
-            deschashonly: None,
+            deschashonly: Some(true),
         }))
         .await
         .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
