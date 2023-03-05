@@ -77,8 +77,8 @@ I mostly built it so I could play with the cool kids on nostr, PRs welcome, but 
 annoy myself, like the MIT license says: "provided as-is". If you find `clnurl` useful or just want to test it out feel
 free to throw me some sats :P
 
-| Format     | Encoding                                                                      |
-|------------|-------------------------------------------------------------------------------|
-| LNURL QR   | ![elsirion lnurl](elsirion_lnurl.png)                                         |
-| LNURL      | `lnurl1dp68gurn8ghj7cn5vvknytnnd9exjmmw9e5k7tmvde6hymzlv9cxjtmvde6hymq64r0pl` |
-| LN Address | `elsirion@sirion.io`                                                          |
+| Format     | Encoding                                                                                            |
+|------------|-----------------------------------------------------------------------------------------------------|
+| LNURL QR   | <img src="https://raw.githubusercontent.com/elsirion/clnurl/master/elsirion_lnurl.png" width="200"> |
+| LNURL      | `lnurl1dp68gurn8ghj7cn5vvknytnnd9exjmmw9e5k7tmvde6hymzlv9cxjtmvde6hymq64r0pl`                       |
+| LN Address | `elsirion@sirion.io`                                                                                |
