@@ -94,13 +94,9 @@ struct ClnurlState {
 #[serde(rename_all = "camelCase")]
 struct LnurlResponse {
     // TODO: introduce amount type, figure out if this is sat or msat
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    min_sendable: Option<u64>,
+    min_sendable: u64,
     // TODO: introduce amount type, figure out if this is sat or msat
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    max_sendable: Option<u64>,
+    max_sendable: u64,
     metadata: String,
     callback: Url,
     tag: LnurlTag,
@@ -114,8 +110,8 @@ enum LnurlTag {
 
 async fn get_lnurl_struct(State(state): State<ClnurlState>) -> Json<LnurlResponse> {
     Json(LnurlResponse {
-        min_sendable: Some(0),
-        max_sendable: None,
+        min_sendable: 0,
+        max_sendable: 100000000000,
         metadata: format!("[[\"text/plain\",\"{}\"]]", state.description),
         callback: state
             .api_base_address
