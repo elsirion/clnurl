@@ -101,9 +101,9 @@ enum LnurlTag {
 async fn get_lnurl_struct(State(state): State<ClnurlState>) -> Json<LnurlResponse> {
     Json(LnurlResponse {
         min_sendable: Some(0),
-        max_sendable: None,
+        max_sendable: Some(1000000000),
         // TODO: find out what this does
-        metadata: "".to_string(),
+        metadata: "[[\"text/plain\",\"lnurl-toolbox: payRequest\"]]".to_string(),
         callback: state
             .api_base_address
             .join("invoice")
