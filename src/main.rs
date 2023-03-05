@@ -148,7 +148,7 @@ async fn get_invoice(
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
             amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
-            description: state.description,
+            description: format!("[[\"text/plain\",\"{}\"]]", state.description),
             label: Uuid::new_v4().to_string(),
             expiry: None,
             fallbacks: None,
