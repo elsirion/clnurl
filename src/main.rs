@@ -169,7 +169,7 @@ async fn get_invoice(
         Some(d) => {
             // TODO: Verify the zap request
             let zap_request = d;
-            zap_request.clone()
+            zap_request.to_owned()
         }
         None => state.description,
     };
@@ -177,7 +177,7 @@ async fn get_invoice(
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
             amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
-            description: serde_json::to_string(&vec![vec!["text/plain".to_string(), description]])
+            description: serde_json::to_string(&description)
                 .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
             label: Uuid::new_v4().to_string(),
             expiry: None,
