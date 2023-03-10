@@ -14,6 +14,8 @@ use tokio::io::{stdin, stdout};
 use url::Url;
 use uuid::Uuid;
 
+use nostr::event::Event;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let plugin = if let Some(plugin) = cln_plugin::Builder::new(stdin(), stdout())
@@ -167,9 +169,12 @@ async fn get_invoice(
 
     let description = match &params.nostr {
         Some(d) => {
-            // TODO: Verify the zap request
-            let zap_request = d;
-            zap_request.to_owned()
+            let zap_request: Event =
+                Event::from_json(d).map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            zap_request
+                .verify()
+                .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            zap_request.as_json()
         }
         None => state.description,
     };
@@ -177,8 +182,7 @@ async fn get_invoice(
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
             amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
-            description: serde_json::to_string(&description)
-                .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
+            description,
             label: Uuid::new_v4().to_string(),
             expiry: None,
             fallbacks: None,
