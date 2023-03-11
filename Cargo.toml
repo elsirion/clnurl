@@ -11,6 +11,8 @@ axum = "0.6.10"
 cln-plugin = "0.1.2"
 cln-rpc = "0.1.2"
 serde = "1.0.152"
+serde_json = "1"
 tokio = { version = "1.26.0", features = [ "full" ] }
 url = { version = "2.3.1", features = [ "serde" ] }
 uuid = { version = "1.3.0", features = [ "rand", "v4" ] }
+nostr = { version = "0.19.5", default_features = false }

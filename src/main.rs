@@ -14,6 +14,8 @@ use tokio::io::{stdin, stdout};
 use url::Url;
 use uuid::Uuid;
 
+use nostr::event::Event;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let plugin = if let Some(plugin) = cln_plugin::Builder::new(stdin(), stdout())
@@ -33,6 +35,11 @@ async fn main() -> anyhow::Result<()> {
             "clnurl_description",
             Value::String("Gimme money!".into()),
             "Description to be displayed in LNURL",
+        ))
+        .option(ConfigOption::new(
+            "clnurl_nostr_pubkey",
+            Value::OptString,
+            "Nostr pub key of zapper",
         ))
         .dynamic()
         .start(())
@@ -65,10 +72,15 @@ async fn main() -> anyhow::Result<()> {
         .expect("Option is a string")
         .to_owned();
 
+    let nostr_pubkey = plugin
+        .option("clnurl_nostr_pubkey")
+        .map(|v| v.as_str().expect("Option is string").to_owned());
+
     let state = ClnurlState {
         rpc_socket,
         api_base_address,
         description,
+        nostr_pubkey,
     };
 
     let lnurl_service = Router::new()
@@ -88,6 +100,7 @@ struct ClnurlState {
     rpc_socket: PathBuf,
     api_base_address: Url,
     description: String,
+    nostr_pubkey: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,6 +113,9 @@ struct LnurlResponse {
     metadata: String,
     callback: Url,
     tag: LnurlTag,
+    allow_nostr: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    nostr_pubkey: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -108,23 +124,29 @@ enum LnurlTag {
     PayRequest,
 }
 
-async fn get_lnurl_struct(State(state): State<ClnurlState>) -> Json<LnurlResponse> {
-    Json(LnurlResponse {
+async fn get_lnurl_struct(
+    State(state): State<ClnurlState>,
+) -> Result<Json<LnurlResponse>, StatusCode> {
+    Ok(Json(LnurlResponse {
         min_sendable: 0,
         max_sendable: 100000000000,
-        metadata: format!("[[\"text/plain\",\"{}\"]]", state.description),
+        metadata: serde_json::to_string(&vec![vec!["text/plain".to_string(), state.description]])
+            .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
         callback: state
             .api_base_address
             .join("invoice")
             .expect("Still a valid URL"),
         tag: LnurlTag::PayRequest,
-    })
+        allow_nostr: state.nostr_pubkey.is_some(),
+        nostr_pubkey: state.nostr_pubkey,
+    }))
 }
 
 #[derive(Deserialize)]
 struct GetInvoiceParams {
     // TODO: introduce amount type, figure out if this is sat or msat
     amount: u64,
+    nostr: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -145,10 +167,22 @@ async fn get_invoice(
         .await
         .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let description = match &params.nostr {
+        Some(d) => {
+            let zap_request: Event =
+                Event::from_json(d).map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            zap_request
+                .verify()
+                .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            zap_request.as_json()
+        }
+        None => state.description,
+    };
+
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
             amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
-            description: format!("[[\"text/plain\",\"{}\"]]", state.description),
+            description,
             label: Uuid::new_v4().to_string(),
             expiry: None,
             fallbacks: None,
