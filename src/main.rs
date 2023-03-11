@@ -113,7 +113,7 @@ struct LnurlResponse {
     metadata: String,
     callback: Url,
     tag: LnurlTag,
-    allow_nostr: bool,
+    allows_nostr: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     nostr_pubkey: Option<String>,
 }
@@ -137,7 +137,7 @@ async fn get_lnurl_struct(
             .join("invoice")
             .expect("Still a valid URL"),
         tag: LnurlTag::PayRequest,
-        allow_nostr: state.nostr_pubkey.is_some(),
+        allows_nostr: state.nostr_pubkey.is_some(),
         nostr_pubkey: state.nostr_pubkey,
     }))
 }
