@@ -176,7 +176,8 @@ async fn get_invoice(
                 .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
             zap_request.as_json()
         }
-        None => state.description,
+        None => serde_json::to_string(&vec![vec!["text/plain".to_string(), state.description]])
+            .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
     };
 
     let cln_response = cln_client
