@@ -72,9 +72,14 @@ async fn main() -> anyhow::Result<()> {
         .expect("Option is a string")
         .to_owned();
 
-    let nostr_pubkey = plugin
-        .option("clnurl_nostr_pubkey")
-        .map(|v| v.as_str().expect("Option is string").to_owned());
+    let nostr_pubkey = match plugin.option("clnurl_nostr_pubkey") {
+        Some(Value::String(pubkey)) => Some(pubkey),
+        Some(Value::OptString) => None,
+        _ => {
+            // Something unexpected happened
+            None
+        }
+    };
 
     let state = ClnurlState {
         rpc_socket,
