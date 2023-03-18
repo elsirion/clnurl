@@ -6,8 +6,8 @@ use axum::routing::get;
 use axum::{Json, Router};
 use cln_plugin::options::{ConfigOption, Value};
 use cln_rpc::model::InvoiceRequest;
-use cln_rpc::primitives::AmountOrAny;
-use serde::{Deserialize, Serialize};
+use cln_rpc::primitives::{Amount, AmountOrAny};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::io::{stdin, stdout};
@@ -106,10 +106,8 @@ struct ClnurlState {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LnurlResponse {
-    // TODO: introduce amount type, figure out if this is sat or msat
-    min_sendable: u64,
-    // TODO: introduce amount type, figure out if this is sat or msat
-    max_sendable: u64,
+    min_sendable: Amount,
+    max_sendable: Amount,
     metadata: String,
     callback: Url,
     tag: LnurlTag,
@@ -128,8 +126,8 @@ async fn get_lnurl_struct(
     State(state): State<ClnurlState>,
 ) -> Result<Json<LnurlResponse>, StatusCode> {
     Ok(Json(LnurlResponse {
-        min_sendable: 0,
-        max_sendable: 100000000000,
+        min_sendable: Amount::from_sat(0),
+        max_sendable: Amount::from_sat(100000000000),
         metadata: serde_json::to_string(&vec![vec!["text/plain".to_string(), state.description]])
             .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
         callback: state
@@ -144,9 +142,28 @@ async fn get_lnurl_struct(
 
 #[derive(Deserialize)]
 struct GetInvoiceParams {
-    // TODO: introduce amount type, figure out if this is sat or msat
-    amount: u64,
+    amount: AmountWrapper,
     nostr: Option<String>,
+}
+
+#[derive(Debug)]
+struct AmountWrapper(Amount);
+
+impl<'de> Deserialize<'de> for AmountWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let m_sats = u64::deserialize(deserializer)?;
+        let amount = Amount::from_msat(m_sats);
+        Ok(AmountWrapper(amount))
+    }
+}
+
+impl From<AmountWrapper> for Amount {
+    fn from(wrapper: AmountWrapper) -> Amount {
+        wrapper.0
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -182,7 +199,7 @@ async fn get_invoice(
 
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
-            amount_msat: AmountOrAny::Amount(cln_rpc::primitives::Amount::from_msat(params.amount)),
+            amount_msat: AmountOrAny::Amount(params.amount.into()),
             description,
             label: Uuid::new_v4().to_string(),
             expiry: None,
