@@ -7,7 +7,7 @@ use axum::{Json, Router};
 use cln_plugin::options::{ConfigOption, Value};
 use cln_rpc::model::InvoiceRequest;
 use cln_rpc::primitives::{Amount, AmountOrAny};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::io::{stdin, stdout};
@@ -15,6 +15,8 @@ use url::Url;
 use uuid::Uuid;
 
 use nostr::event::Event;
+
+mod serde_amount;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -111,8 +113,10 @@ struct ClnurlState {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct LnurlResponse {
-    min_sendable: AmountWrapper,
-    max_sendable: AmountWrapper,
+    #[serde(with = "serde_amount::as_msat")]
+    min_sendable: Amount,
+    #[serde(with = "serde_amount::as_msat")]
+    max_sendable: Amount,
     metadata: String,
     callback: Url,
     tag: LnurlTag,
@@ -131,8 +135,8 @@ async fn get_lnurl_struct(
     State(state): State<ClnurlState>,
 ) -> Result<Json<LnurlResponse>, StatusCode> {
     Ok(Json(LnurlResponse {
-        min_sendable: AmountWrapper::from_msat(1),
-        max_sendable: AmountWrapper::from_msat(100000000000),
+        min_sendable: Amount::from_msat(100),
+        max_sendable: Amount::from_msat(100000000000),
         metadata: serde_json::to_string(&vec![vec!["text/plain".to_string(), state.description]])
             .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
         callback: state
@@ -147,47 +151,9 @@ async fn get_lnurl_struct(
 
 #[derive(Serialize, Deserialize)]
 struct GetInvoiceParams {
-    amount: AmountWrapper,
+    #[serde(with = "serde_amount::as_msat")]
+    amount: Amount,
     nostr: Option<String>,
-}
-
-#[derive(Debug)]
-struct AmountWrapper(Amount);
-
-impl AmountWrapper {
-    pub fn from_msat(msat: u64) -> AmountWrapper {
-        AmountWrapper(Amount::from_msat(msat))
-    }
-
-    pub fn msat(&self) -> u64 {
-        self.0.msat()
-    }
-}
-
-impl<'de> Deserialize<'de> for AmountWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let m_sats = u64::deserialize(deserializer)?;
-        let amount = Amount::from_msat(m_sats);
-        Ok(AmountWrapper(amount))
-    }
-}
-
-impl Serialize for AmountWrapper {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.msat().serialize(serializer)
-    }
-}
-
-impl From<AmountWrapper> for Amount {
-    fn from(wrapper: AmountWrapper) -> Amount {
-        wrapper.0
-    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -223,7 +189,7 @@ async fn get_invoice(
 
     let cln_response = cln_client
         .call(cln_rpc::Request::Invoice(InvoiceRequest {
-            amount_msat: AmountOrAny::Amount(params.amount.into()),
+            amount_msat: AmountOrAny::Amount(params.amount),
             description,
             label: Uuid::new_v4().to_string(),
             expiry: None,
@@ -258,8 +224,8 @@ mod tests {
     #[test]
     fn test_lnurl_response_serialization() {
         let lnurl_response = LnurlResponse {
-            min_sendable: AmountWrapper::from_msat(0),
-            max_sendable: AmountWrapper::from_msat(1000000),
+            min_sendable: Amount::from_msat(0),
+            max_sendable: Amount::from_msat(1000000),
             metadata: serde_json::to_string(&vec![vec![
                 "text/plain".to_string(),
                 "Hello world".to_string(),
