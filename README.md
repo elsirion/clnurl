@@ -47,7 +47,7 @@ clnurl = (import
 * `clnurl_min_sendable`: Min millisatoshi amount clnurl is willing to receive, can not be less than 1 or more than maxSendable. Defaults to `100`.
 * `clnurl_max_sendable`: Max millisatoshi amount clnurl is willing to receive. Defaults to `100000000000`
 * `clnurl_description`: Description used for all LNURLs, PRs to change that welcome. Defaults to `Gimme money!`
-`
+* `clnurl_nostr_pubkey`: Nostr HEX pubkey of zapper
 
 ## Reverse proxying
 
