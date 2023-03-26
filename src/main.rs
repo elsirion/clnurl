@@ -7,7 +7,7 @@ use axum::{Json, Router};
 use cln_plugin::options::{ConfigOption, Value};
 use cln_rpc::model::InvoiceRequest;
 use cln_rpc::primitives::{Amount, AmountOrAny};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::io::{stdin, stdout};
@@ -15,8 +15,6 @@ use url::Url;
 use uuid::Uuid;
 
 use nostr::event::Event;
-
-mod serde_amount;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -113,9 +111,9 @@ struct ClnurlState {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct LnurlResponse {
-    #[serde(with = "serde_amount::as_msat")]
+    #[serde(with = "as_msat")]
     min_sendable: Amount,
-    #[serde(with = "serde_amount::as_msat")]
+    #[serde(with = "as_msat")]
     max_sendable: Amount,
     metadata: String,
     callback: Url,
@@ -151,7 +149,7 @@ async fn get_lnurl_struct(
 
 #[derive(Serialize, Deserialize)]
 struct GetInvoiceParams {
-    #[serde(with = "serde_amount::as_msat")]
+    #[serde(with = "as_msat")]
     amount: Amount,
     nostr: Option<String>,
 }
@@ -212,6 +210,25 @@ async fn get_invoice(
         success_action: None,
         routes: vec![],
     }))
+}
+
+pub mod as_msat {
+    use super::*;
+
+    pub fn serialize<S>(amount: &Amount, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        amount.msat().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Amount, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let msat = u64::deserialize(deserializer)?;
+        Ok(Amount::from_msat(msat))
+    }
 }
 
 #[cfg(test)]
