@@ -44,7 +44,10 @@ clnurl = (import
   `https://example.com/lnurl_api/lnurl`, in which case you'd have to specify `https://example.com/lnurl_api/` as base
   address. **You need to set this. It is also important that the reverse proxy uses HTTPS.**
 * `clnurl_listen`: Internal listen address for the LNURL web server, defaults to `127.0.0.1:9876`
-* `clnurl_description`: Description used for all LNURLs, PRs to change that welcome. Defaults to `Gimme money!`.
+* `clnurl_min_sendable`: Min millisatoshi amount clnurl is willing to receive, can not be less than 1 or more than maxSendable. Defaults to `100`.
+* `clnurl_max_sendable`: Max millisatoshi amount clnurl is willing to receive. Defaults to `100000000000`
+* `clnurl_description`: Description used for all LNURLs, PRs to change that welcome. Defaults to `Gimme money!`
+* `clnurl_nostr_pubkey`: Nostr HEX pubkey of zapper
 
 ## Reverse proxying
 

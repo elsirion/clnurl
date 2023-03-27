@@ -32,6 +32,16 @@ async fn main() -> anyhow::Result<()> {
             https://example.com/lnurl_api/lnurl and https://example.com/lnurl_api/invoice",
         ))
         .option(ConfigOption::new(
+            "clnurl_min_sendable",
+            Value::Integer(100),
+            "Min millisatoshi amount clnurl is willing to receive, can not be less than 1 or more than `maxSendable",
+        ))
+        .option(ConfigOption::new(
+            "clnurl_max_sendable",
+            Value::Integer(100000000000),
+            "Max millisatoshi amount clnurl is willing to receive",
+        ))
+        .option(ConfigOption::new(
             "clnurl_description",
             Value::String("Gimme money!".into()),
             "Description to be displayed in LNURL",
@@ -65,6 +75,20 @@ async fn main() -> anyhow::Result<()> {
         .expect("Option is a string")
         .parse()?;
 
+    let min_sendable = plugin
+        .option("clnurl_min_sendable")
+        .expect("Option is defined")
+        .as_i64()
+        .expect("Option is a string")
+        .to_owned();
+
+    let max_sendable = plugin
+        .option("clnurl_max_sendable")
+        .expect("Option is defined")
+        .as_i64()
+        .expect("Option is a string")
+        .to_owned();
+
     let description = plugin
         .option("clnurl_description")
         .expect("Option is defined")
@@ -84,6 +108,8 @@ async fn main() -> anyhow::Result<()> {
     let state = ClnurlState {
         rpc_socket,
         api_base_address,
+        min_sendable: Amount::from_msat(min_sendable as u64),
+        max_sendable: Amount::from_msat(max_sendable as u64),
         description,
         nostr_pubkey,
     };
@@ -104,6 +130,8 @@ async fn main() -> anyhow::Result<()> {
 struct ClnurlState {
     rpc_socket: PathBuf,
     api_base_address: Url,
+    min_sendable: Amount,
+    max_sendable: Amount,
     description: String,
     nostr_pubkey: Option<String>,
 }
@@ -133,8 +161,8 @@ async fn get_lnurl_struct(
     State(state): State<ClnurlState>,
 ) -> Result<Json<LnurlResponse>, StatusCode> {
     Ok(Json(LnurlResponse {
-        min_sendable: Amount::from_msat(100),
-        max_sendable: Amount::from_msat(100000000000),
+        min_sendable: state.min_sendable,
+        max_sendable: state.max_sendable,
         metadata: serde_json::to_string(&vec![vec!["text/plain".to_string(), state.description]])
             .map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?,
         callback: state
