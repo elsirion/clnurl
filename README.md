@@ -62,6 +62,10 @@ services.nginx = {
     forceSSL = true;
     locations."/lnurl_api/" = {
       proxyPass = "http://127.0.0.1:9876/";
+      extraConfig = ''
+        add_header Access-Control-Allow-Origin *;
+      '';
+
     };
     # If you also want to support LN Addresses you can add single handles like this
     locations."=/.well-known/lnurlp/<you_user_name>" = {
