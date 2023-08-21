@@ -73,6 +73,12 @@ services.nginx = {
     };
   };
 };
+
+security.acme = {
+  acceptTerms = true;
+  defaults.email = "foo@bar.com";
+};
+
 ```
 
 ## Contributing
