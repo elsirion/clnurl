@@ -1,4 +1,5 @@
 //! A mostly reverse-engineered implementation of LNURLPay following <https://bolt.fun/guide/web-services/lnurl/pay>
+use std::str::FromStr;
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -7,14 +8,15 @@ use axum::{Json, Router};
 use cln_plugin::options::{ConfigOption, Value};
 use cln_rpc::model::InvoiceRequest;
 use cln_rpc::primitives::{Amount, AmountOrAny};
+use nostr::event::Event;
+use nostr::prelude::FromBech32;
+use nostr::secp256k1::XOnlyPublicKey;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::io::{stdin, stdout};
 use url::Url;
 use uuid::Uuid;
-
-use nostr::event::Event;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -97,7 +99,10 @@ async fn main() -> anyhow::Result<()> {
         .to_owned();
 
     let nostr_pubkey = match plugin.option("clnurl_nostr_pubkey") {
-        Some(Value::String(pubkey)) => Some(pubkey),
+        Some(Value::String(pubkey)) => match XOnlyPublicKey::from_bech32(&pubkey) {
+            Ok(pubkey) => Some(pubkey),
+            Err(_) => Some(XOnlyPublicKey::from_str(&pubkey).expect("Invalid Zapper pubkey")),
+        },
         Some(Value::OptString) => None,
         _ => {
             // Something unexpected happened
@@ -133,7 +138,7 @@ struct ClnurlState {
     min_sendable: Amount,
     max_sendable: Amount,
     description: String,
-    nostr_pubkey: Option<String>,
+    nostr_pubkey: Option<XOnlyPublicKey>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -148,7 +153,7 @@ struct LnurlResponse {
     tag: LnurlTag,
     allows_nostr: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    nostr_pubkey: Option<String>,
+    nostr_pubkey: Option<XOnlyPublicKey>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -280,7 +285,10 @@ mod tests {
             tag: LnurlTag::PayRequest,
             allows_nostr: true,
             nostr_pubkey: Some(
-                "9630f464cca6a5147aa8a35f0bcdd3ce485324e732fd39e09233b1d848238f31".to_string(),
+                XOnlyPublicKey::from_str(
+                    "9630f464cca6a5147aa8a35f0bcdd3ce485324e732fd39e09233b1d848238f31",
+                )
+                .unwrap(),
             ),
         };
 

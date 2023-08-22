@@ -62,10 +62,14 @@ services.nginx = {
     forceSSL = true;
     locations."/lnurl_api/" = {
       proxyPass = "http://127.0.0.1:9876/";
+      extraConfig = ''
+        add_header Access-Control-Allow-Origin *;
+      '';
+
     };
     # If you also want to support LN Addresses you can add single handles like this
     locations."=/.well-known/lnurlp/<you_user_name>" = {
-      proxyPass = "http://127.0.0.1:9876/";
+      proxyPass = "http://127.0.0.1:9876/lnurl";
       # Just added allow origin since that helped with some nostr web clients
       extraConfig = ''
         add_header Access-Control-Allow-Origin *;
@@ -73,6 +77,12 @@ services.nginx = {
     };
   };
 };
+
+security.acme = {
+  acceptTerms = true;
+  defaults.email = "foo@bar.com";
+};
+
 ```
 
 ## Contributing
