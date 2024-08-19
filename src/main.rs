@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let (shutdown_sender, mut shutdown_receiver) = tokio::sync::mpsc::channel::<()>(1);
     let plugin = if let Some(plugin) = cln_plugin::Builder::new(stdin(), stdout())
         .option(ConfigOption::new(
             "clnurl_listen",
@@ -53,6 +54,17 @@ async fn main() -> anyhow::Result<()> {
             Value::OptString,
             "Nostr pub key of zapper",
         ))
+        .subscribe("shutdown", move |_, _| {
+            let shutdown_sender_inner = shutdown_sender.clone();
+            async move {
+                shutdown_sender_inner
+                    .send(())
+                    .await
+                    .expect("Shutdown signal received after main thread died");
+
+                Ok(())
+            }
+        })
         .dynamic()
         .start(())
         .await?
@@ -124,8 +136,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/invoice", get(get_invoice))
         .with_state(state);
 
+    let shutdown_future = async move {
+        shutdown_receiver.recv().await;
+    };
+
     axum::Server::bind(&listen_addr)
         .serve(lnurl_service.into_make_service())
+        .with_graceful_shutdown(shutdown_future)
         .await?;
 
     Ok(())
