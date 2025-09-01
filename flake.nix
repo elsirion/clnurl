@@ -9,7 +9,8 @@
   outputs = { self, nixpkgs, crane, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        craneLib = crane.lib.${system};
+        pkgs = nixpkgs.legacyPackages.${system};
+        craneLib = crane.mkLib pkgs;
       in
     {
       packages.default = craneLib.buildPackage {
